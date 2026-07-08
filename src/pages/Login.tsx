@@ -7,7 +7,9 @@ import {
   ShieldCheck,
   Mail,
   Lock,
-  ArrowRight } from
+  User,
+  ArrowRight,
+  UserPlus } from
 'lucide-react';
 import { Logo } from '../components/Logo';
 import { useAuth, ROLE_HOME, type Role } from '../components/AuthProvider';
@@ -46,9 +48,11 @@ const roles: {
 ];
 
 export function Login() {
-  const { login, authenticateAccount, updateAccountPassword } = useAuth();
+  const { login, authenticateAccount, updateAccountPassword, register } = useAuth();
   const navigate = useNavigate();
+  const [mode, setMode] = useState<'login' | 'register'>('login');
   const [role, setRole] = useState<Role>('student');
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -105,6 +109,44 @@ export function Login() {
   };
   const submit = (e: React.FormEvent) => {
     handleAccess(e);
+  };
+
+  const handleRegister = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    setError('');
+    setResetMessage('');
+
+    if (!name.trim()) {
+      setError('Please enter your full name.');
+      return;
+    }
+
+    if (!email.trim()) {
+      setError('Please enter your email address.');
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Please enter a valid email address.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters long.');
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match.');
+      return;
+    }
+
+    try {
+      register(name.trim(), email.trim(), password, role);
+      navigate(ROLE_HOME[role]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Registration failed. Please try again.');
+    }
   };
   const openResetModal = () => {
     setError('');
@@ -258,6 +300,22 @@ export function Login() {
             </div>
           </fieldset>
 
+          <div className="flex bg-gray-100 dark:bg-gray-800 rounded-lg p-1 mb-5">
+            <button
+              type="button"
+              onClick={() => { setMode('login'); setError(''); setResetMessage(''); }}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${mode === 'login' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => { setMode('register'); setError(''); setResetMessage(''); }}
+              className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${mode === 'register' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+              Create Account
+            </button>
+          </div>
+
+          {mode === 'login' ? (<>
           <form onSubmit={submit} className="space-y-4">
             <div>
               <label
@@ -338,6 +396,87 @@ export function Login() {
           <p className="text-center text-xs text-gray-400 mt-6">
             {role === 'admin' ? 'Use your admin credentials to manage the platform.' : role === 'lecturer' ? 'Use your lecturer credentials to access teaching tools.' : 'Use your student credentials to access your learning dashboard.'}
           </p>
+          </>) : (<>
+          <form onSubmit={handleRegister} className="space-y-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="reg-name">
+                Full Name
+              </label>
+              <div className="relative mt-1">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  id="reg-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => { setName(e.target.value); if (error) setError(''); }}
+                  className="w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue dark:text-white"
+                  placeholder="John Doe" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="reg-email">
+                Email
+              </label>
+              <div className="relative mt-1">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  id="reg-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => { setEmail(e.target.value); if (error) setError(''); }}
+                  className="w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue dark:text-white"
+                  placeholder="you@univ-iug.com" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="reg-password">
+                Password
+              </label>
+              <div className="relative mt-1">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  id="reg-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => { setPassword(e.target.value); if (error) setError(''); }}
+                  className="w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue dark:text-white"
+                  placeholder="Min. 6 characters" />
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-gray-700 dark:text-gray-300" htmlFor="reg-confirm">
+                Confirm Password
+              </label>
+              <div className="relative mt-1">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input
+                  id="reg-confirm"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => { setConfirmPassword(e.target.value); if (error) setError(''); }}
+                  className="w-full pl-10 pr-3 py-2.5 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-brand-blue dark:text-white"
+                  placeholder="Re-enter password" />
+              </div>
+            </div>
+            {error ? (
+              <p className="text-sm text-red-500 dark:text-red-400">{error}</p>
+            ) : null}
+            <button
+              type="submit"
+              disabled={!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 ${role === 'admin' ? 'bg-brand-orange hover:bg-orange-600' : role === 'lecturer' ? 'bg-brand-green hover:bg-green-600' : 'bg-brand-blue hover:bg-brand-blueDark'} text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed`}>
+              <UserPlus className="w-4 h-4" />
+              Create {currentRole.label} Account
+            </button>
+          </form>
+
+          <p className="text-center text-xs text-gray-400 mt-6">
+            Already have an account?{' '}
+            <button type="button" onClick={() => { setMode('login'); setError(''); setResetMessage(''); }} className="text-brand-blue hover:underline font-medium">
+              Sign in
+            </button>
+          </p>
+          </>)}
         </motion.div>
       </div>
 

@@ -112,14 +112,8 @@ const writeAccounts = (accounts: StoredAccount[]) => {
   }
 };
 
-const ensureSeedAccount = () => {
-  const accounts = readAccounts();
-  const alreadyExists = accounts.some(
-    (account) => account.email.toLowerCase() === "admin@univ-iug.com",
-  );
-  if (alreadyExists) return;
-
-  const adminAccount: StoredAccount = {
+const SEED_ACCOUNTS: StoredAccount[] = [
+  {
     id: "seed-admin",
     name: "Samuel Adeyemi",
     email: "admin@univ-iug.com",
@@ -127,9 +121,38 @@ const ensureSeedAccount = () => {
     role: "admin",
     faculty: "Administration",
     status: "Active",
-  };
+  },
+  {
+    id: "seed-student",
+    name: "John Doe",
+    email: "john.doe@univ-iug.com",
+    password: "Student@123",
+    role: "student",
+    faculty: "Computing",
+    status: "Active",
+  },
+  {
+    id: "seed-lecturer",
+    name: "Dr. Amina Toure",
+    email: "a.toure@univ-iug.com",
+    password: "Lecturer@123",
+    role: "lecturer",
+    faculty: "Computing",
+    status: "Active",
+  },
+];
 
-  writeAccounts([...accounts, adminAccount]);
+const ensureSeedAccounts = () => {
+  const accounts = readAccounts();
+  const existingEmails = new Set(
+    accounts.map((account) => account.email.toLowerCase()),
+  );
+  const missing = SEED_ACCOUNTS.filter(
+    (seed) => !existingEmails.has(seed.email.toLowerCase()),
+  );
+  if (missing.length > 0) {
+    writeAccounts([...accounts, ...missing]);
+  }
 };
 
 interface AuthContextType {
@@ -143,6 +166,7 @@ interface AuthContextType {
     role: Role,
   ) => User | null;
   createAccount: (account: Omit<StoredAccount, "id">) => StoredAccount;
+  register: (name: string, email: string, password: string, role: Role) => User;
   updateAccountPassword: (email: string, newPassword: string) => boolean;
 }
 
@@ -153,7 +177,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
-    ensureSeedAccount();
+    ensureSeedAccounts();
 
     if (screenInit?.role) {
       const resolvedRole = normalizeRole(screenInit.role);
@@ -195,7 +219,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const profileFor = (role: Role) => ROLE_PROFILES[role];
 
   const authenticateAccount = (email: string, password: string, role: Role) => {
-    ensureSeedAccount();
+    ensureSeedAccounts();
     const accounts = readAccounts();
     const found = accounts.find(
       (account) =>
@@ -216,7 +240,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const createAccount = (account: Omit<StoredAccount, "id">) => {
-    ensureSeedAccount();
+    ensureSeedAccounts();
     const accounts = readAccounts();
     const normalizedEmail = account.email.trim().toLowerCase();
     const duplicate = accounts.find(
@@ -239,8 +263,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return nextAccount;
   };
 
+  const register = (
+    name: string,
+    email: string,
+    password: string,
+    role: Role,
+  ) => {
+    const created = createAccount({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password: password.trim(),
+      role,
+      faculty: "",
+      status: "Active",
+    });
+
+    const user = buildUser(created.role, {
+      name: created.name,
+      email: created.email,
+      title: created.faculty
+        ? `${created.faculty} Faculty`
+        : ROLE_PROFILES[created.role].title,
+      initials: createInitials(created.name),
+    });
+
+    setUser(user);
+    try {
+      localStorage.setItem(ROLE_STORAGE_KEY, created.role);
+    } catch {
+      // ignore
+    }
+
+    return user;
+  };
+
   const updateAccountPassword = (email: string, newPassword: string) => {
-    ensureSeedAccount();
+    ensureSeedAccounts();
     const accounts = readAccounts();
     const normalizedEmail = email.trim().toLowerCase();
     const exists = accounts.some(
@@ -268,6 +326,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         profileFor,
         authenticateAccount,
         createAccount,
+        register,
         updateAccountPassword,
       }}
     >
